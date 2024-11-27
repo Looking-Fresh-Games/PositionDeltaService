@@ -13,10 +13,14 @@
     Toggle this accordingly if you intend to teleport players intentionally -
     both before and after the teleport.
 
-    RefreshRate: Seconds per check
+    MagnitudeRate: Seconds per check
     MaxMagnitude: Maximum stud allowance
+    StrikeDebounce: Seconds per strike allowance (prevents spamming)
+    StrikeRate: Seconds per MaxStrike check - Strikes reset each interval
+    MaxStrikes: Maximum strike allowance
+
     DebugMode: Disables kicking, enables warns (great for
-    helping configure RefreshRate and MaxMagnitude)
+    helping configure MagnitudeRate and MaxMagnitude)
 ]]
 
 -- Services
@@ -25,22 +29,36 @@ local RunService = game:GetService("RunService")
 
 -- Types
 type Configuration = {
-    RefreshRate: number,
+    MagnitudeRate: number,
     MaxMagnitude: number,
+    StrikeDebounce: number,
+    StrikeRate: number,
+    MaxStrikes: number,
+
     DebugMode: boolean
+}
+type PlayerEntry = {
+    Position: Vector3,
+    Strikes: number,
+    LastStrike: number
 }
 
 -- Refs
 local _configuration = {
-    RefreshRate = 0.1,
+    MagnitudeRate = 0.1,
     MaxMagnitude = 30,
+    StrikeDebounce = 1,
+    StrikeRate = 10,
+    MaxStrikes = 5,
+
     DebugMode = true
 } :: Configuration
 
-local _positionData = {} :: {[Player]: Vector3}
+local _playerData = {} :: {[Player]: PlayerEntry}
 local _respawnConnections = {} :: {[Player]: RBXScriptConnection}
 local _diedConnections = {} :: {[Player]: RBXScriptConnection}
-local _elapsed = 0
+local _magnitudeTimer = 0
+local _strikeTimer = 0
 
 
 
@@ -50,13 +68,20 @@ local PositionDeltaService = {}
 -- Create player entry
 function PositionDeltaService:_playerAdded(player: Player?)
     if not player then
+        warn(`no player was supplied`)
         return
     end
 
     -- add new position entry
-    local playerEntry = _positionData[player]
+    local playerEntry = _playerData[player]
     if not playerEntry then
-        _positionData[player] = Vector3.zero
+        _playerData[player] = {
+            Position = Vector3.zero,
+            Strikes = 0,
+            LastStrike = tick()
+        }
+
+        playerEntry = _playerData[player]
     end
 
     -- add a respawn connection entry -- prevent false positive when respawning
@@ -65,14 +90,14 @@ function PositionDeltaService:_playerAdded(player: Player?)
         -- listen for new character
         _respawnConnections[player] = player.CharacterAdded:Connect(function(newCharacter: Model)
             -- zero out position entry to prevent false positive
-            _positionData[player] = Vector3.zero
+            playerEntry.Position = Vector3.zero
     
             -- listen for humanoid
             local humanoid = newCharacter:WaitForChild("Humanoid", 5) :: Humanoid?
             if humanoid then
                 -- listen for Died, zero out position entry to prevent false positive
                 _diedConnections[player] = humanoid.Died:Once(function()
-                    _positionData[player] = Vector3.zero
+                    playerEntry.Position = Vector3.zero
                     _diedConnections[player] = nil
                 end)
             end
@@ -87,9 +112,9 @@ function PositionDeltaService:_playerRemoving(player: Player?)
     end
 
     -- remove position entry
-    local playerEntry = _positionData[player]
+    local playerEntry = _playerData[player]
     if playerEntry then
-        _positionData[player] = nil
+        _playerData[player] = nil
     end
 
     -- remove respawn detection entry
@@ -113,22 +138,26 @@ function PositionDeltaService:_exceededMaxMagnitude(player: Player?)
         return
     end
 
-    local playerEntry = _positionData[player]
+    local playerEntry = _playerData[player]
     if not playerEntry then
+        warn(`no entry found for {player.Name}`)
         return
     end
 
-    if _configuration.DebugMode then
-        warn(`{player.Name} has exceeded MaxMagnitude`)
-    else
-        player:Kick()
+    if tick() >= playerEntry.LastStrike + _configuration.StrikeDebounce then
+        playerEntry.Strikes += 1
+        playerEntry.LastStrike = tick()
+
+        if _configuration.DebugMode then
+            warn(`{player.Name} has exceeded MaxMagnitude, strike {playerEntry.Strikes}`)
+        end
     end
 end
 
 -- Compare positions for each player
 function PositionDeltaService:_scan()
     -- filter through all player entries
-    for player: Player, lastPosition: Vector3 in _positionData do
+    for player: Player, entry: PlayerEntry in _playerData do
 
         -- prevent yield for each player
         task.spawn(function()
@@ -148,23 +177,44 @@ function PositionDeltaService:_scan()
 
                 -- check magnitude
                 local currentPosition = character:GetPivot().Position
-                local magnitude = (currentPosition - lastPosition).Magnitude
+                local magnitude = (currentPosition - entry.Position).Magnitude
 
                 -- check to see if defined threshold was exceeded
                 if magnitude > _configuration.MaxMagnitude then
                     -- check to see if player entry is new before firing exceeded
-                    if lastPosition ~= Vector3.zero then
+                    if entry.Position ~= Vector3.zero then
                         PositionDeltaService:_exceededMaxMagnitude(player)
                     end
                 end
 
                 -- update entry
                 if player then
-                    _positionData[player] = currentPosition
+                    _playerData[player].Position = currentPosition
                 end
             end
         end)
         
+    end
+end
+
+-- Check player Strikes
+function PositionDeltaService:_handleStrikes()
+    -- filter through all player entries
+    for player: Player, entry: PlayerEntry in _playerData do
+        -- if player exceeded, kick them, otherwise reset strikes
+        if entry.Strikes >= _configuration.MaxStrikes then
+            -- Assess debug status
+            if _configuration.DebugMode then
+                warn(`{player.Name} has exceeded MaxStrikes`)
+                entry.Strikes = 0
+
+                continue
+            end
+
+            player:Kick()
+        else
+            entry.Strikes = 0
+        end
     end
 end
 
@@ -184,11 +234,16 @@ end
 -- Begin scanning
 RunService.Heartbeat:Connect(function(deltaTime: number)
     -- add time passed
-    _elapsed += deltaTime
+    _magnitudeTimer += deltaTime
+    _strikeTimer += deltaTime
         
     -- determine if it's time for a scan
-    if _elapsed >= _configuration.RefreshRate then
-        _elapsed = 0
+    if _magnitudeTimer >= _configuration.MagnitudeRate then
+        _magnitudeTimer = 0
         PositionDeltaService:_scan()
+    end
+    if _strikeTimer >= _configuration.StrikeRate then
+        _strikeTimer = 0
+        PositionDeltaService:_handleStrikes()
     end
 end)
