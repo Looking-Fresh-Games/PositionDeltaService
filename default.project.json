@@ -1,5 +1,5 @@
 {
-	"name": "CheckPositionDeltas",
+	"name": "PositionDeltaService",
 	"tree": {
 		"$path": "src"
 	}
