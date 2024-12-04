@@ -1,17 +1,13 @@
 --!strict
 
 --[[
-    CheckPositionDeltas.server.lua
+    PositionDeltaService.lua
     Author: Michael Southern [DevIrradiant]
 
     Description: Monitors the delta of character Positions.
     
-    NOTE: Package automatically starts, just configure the SetupConfiguration
-    under Refs to what best suits your experience below. 
-    
-    You may attach an attribute to the player {isTeleporting: boolean}.
-    Toggle this accordingly if you intend to teleport players intentionally -
-    both before and after the teleport.
+    NOTE: Call PositionDeltaService:SetConfiguration(config: Configuration)
+    to overwrite the default configuration. 
 
     MagnitudeRate: Seconds per check
     MaxMagnitude: Maximum stud allowance
@@ -21,6 +17,10 @@
 
     DebugMode: Disables kicking, enables warns (great for
     helping configure MagnitudeRate and MaxMagnitude)
+    
+    You may call PositionDeltaService:IgnoreScan(player: Player, ignore: boolean)
+    Toggle this accordingly if you intend to teleport players intentionally -
+    both before and after the teleport.
 ]]
 
 -- Services
@@ -28,7 +28,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 -- Types
-type Configuration = {
+export type Configuration = {
     MagnitudeRate: number,
     MaxMagnitude: number,
     StrikeDebounce: number,
@@ -40,7 +40,8 @@ type Configuration = {
 type PlayerEntry = {
     Position: Vector3,
     Strikes: number,
-    LastStrike: number
+    LastStrike: number,
+    ScanActive: boolean
 }
 
 -- Refs
@@ -65,6 +66,41 @@ local _strikeTimer = 0
 -- Class
 local PositionDeltaService = {}
 
+-- Update configuration
+function PositionDeltaService:UpdateConfiguration(config: Configuration)
+    -- ensure config was supplied
+    if not config then
+        warn(`no configuration was supplied`)
+        return
+    end
+
+    -- ensure config is a table
+    if typeof(config) ~= "table" then
+        warn(`configuration must be table, not {typeof(config)}`)
+        return
+    end
+
+    -- ensure all keys exist and types match
+    for key, value in config do
+        if not _configuration[key] then
+            warn(`key {key} does not exist in configuration`)
+            return
+        else
+            local currentType = typeof(value)
+            local matchType = typeof(_configuration[key])
+            if currentType ~= matchType then
+                warn(`provided type {currentType} is incompatible with {key} type {matchType}`)
+                return
+            end
+       end
+    end
+    
+    -- overwrite default configuration key by key in the event any keys weren't supplied
+    for key, value in config do
+        _configuration[key] = value
+    end
+end
+
 -- Create player entry
 function PositionDeltaService:_playerAdded(player: Player?)
     if not player then
@@ -78,7 +114,8 @@ function PositionDeltaService:_playerAdded(player: Player?)
         _playerData[player] = {
             Position = Vector3.zero,
             Strikes = 0,
-            LastStrike = tick()
+            LastStrike = tick(),
+            ScanActive = true
         }
 
         playerEntry = _playerData[player]
@@ -101,7 +138,7 @@ function PositionDeltaService:_playerAdded(player: Player?)
                     _diedConnections[player] = nil
                 end)
             end
-        end) 
+        end)
     end
 end
 
@@ -158,6 +195,10 @@ end
 function PositionDeltaService:_scan()
     -- filter through all player entries
     for player: Player, entry: PlayerEntry in _playerData do
+        -- ensure player can be scanned
+        if not entry.ScanActive then
+            continue
+        end
 
         -- prevent yield for each player
         task.spawn(function()
@@ -218,6 +259,39 @@ function PositionDeltaService:_handleStrikes()
     end
 end
 
+-- Disable / Enable scanning
+function PositionDeltaService:IgnoreScan(player: Player, ignore: boolean)
+    -- ensure player was sent
+    if not player then
+        warn(`no player was provided`)
+        return
+    end
+
+    -- ensure an entry exists for provided player
+    local playerEntry = _playerData[player]
+    if not playerEntry then
+        warn(`no entry found for {player.Name}`)
+        return
+    end
+
+    -- ensure an ignore was sent, and it's a boolean
+    if ignore == nil then
+        warn(`no boolean was provided`)
+        return
+    elseif typeof(ignore) ~= `boolean` then
+        warn(`supplied ignore type must be boolean, not {typeof(ignore)}`)
+        return
+    end
+
+    -- reset position if applicable
+    if not ignore then
+        playerEntry.Position = Vector3.zero
+    end
+    
+    -- toggle ignore
+    playerEntry.ScanActive = ignore
+end
+
 
 -- init
 -- Listen for entering / exiting Players
@@ -247,3 +321,5 @@ RunService.Heartbeat:Connect(function(deltaTime: number)
         PositionDeltaService:_handleStrikes()
     end
 end)
+
+return PositionDeltaService
