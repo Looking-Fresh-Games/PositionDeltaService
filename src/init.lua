@@ -3,29 +3,7 @@
 --[[
     PositionDeltaService.lua
     Author: Michael Southern [DevIrradiant]
-
-    Description: Monitors the delta of character Positions.
-    
-    NOTE: Call PositionDeltaService:SetConfiguration(config: Configuration)
-    to overwrite the default configuration. 
-
-    MagnitudeRate: Seconds per check
-    MaxMagnitude: Maximum stud allowance
-    StrikeDebounce: Seconds per strike allowance (prevents spamming)
-    StrikeRate: Seconds per MaxStrike check - Strikes reset each interval
-    MaxStrikes: Maximum strike allowance
-
-    DebugMode: Disables kicking, enables warns (great for
-    helping configure MagnitudeRate and MaxMagnitude)
-    
-    You may call PositionDeltaService:IgnoreScan(player: Player, ignore: boolean)
-    Toggle this accordingly if you intend to teleport players intentionally -
-    both before and after the teleport.
 ]]
-
--- Services
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 
 -- Types
 export type Configuration = {
@@ -44,7 +22,11 @@ type PlayerEntry = {
     ScanActive: boolean
 }
 
--- Refs
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+-- Constants
 local _configuration = {
     MagnitudeRate = 0.1,
     MaxMagnitude = 30,
@@ -58,48 +40,15 @@ local _configuration = {
 local _playerData = {} :: {[Player]: PlayerEntry}
 local _respawnConnections = {} :: {[Player]: RBXScriptConnection}
 local _diedConnections = {} :: {[Player]: RBXScriptConnection}
-local _magnitudeTimer = 0
-local _strikeTimer = 0
+
+-- Refs
+local magnitudeTimer = 0
+local strikeTimer = 0
 
 
 
 -- Class
 local PositionDeltaService = {}
-
--- Update configuration
-function PositionDeltaService:UpdateConfiguration(config: Configuration)
-    -- ensure config was supplied
-    if not config then
-        warn(`no configuration was supplied`)
-        return
-    end
-
-    -- ensure config is a table
-    if typeof(config) ~= "table" then
-        warn(`configuration must be table, not {typeof(config)}`)
-        return
-    end
-
-    -- ensure all keys exist and types match
-    for key, value in config do
-        if not _configuration[key] then
-            warn(`key {key} does not exist in configuration`)
-            return
-        else
-            local currentType = typeof(value)
-            local matchType = typeof(_configuration[key])
-            if currentType ~= matchType then
-                warn(`provided type {currentType} is incompatible with {key} type {matchType}`)
-                return
-            end
-       end
-    end
-    
-    -- overwrite default configuration key by key in the event any keys weren't supplied
-    for key, value in config do
-        _configuration[key] = value
-    end
-end
 
 -- Create player entry
 function PositionDeltaService:_playerAdded(player: Player?)
@@ -114,7 +63,7 @@ function PositionDeltaService:_playerAdded(player: Player?)
         _playerData[player] = {
             Position = Vector3.zero,
             Strikes = 0,
-            LastStrike = tick(),
+            LastStrike = workspace:GetServerTimeNow(),
             ScanActive = true
         }
 
@@ -181,9 +130,9 @@ function PositionDeltaService:_exceededMaxMagnitude(player: Player?)
         return
     end
 
-    if tick() >= playerEntry.LastStrike + _configuration.StrikeDebounce then
+    if workspace:GetServerTimeNow() >= playerEntry.LastStrike + _configuration.StrikeDebounce then
         playerEntry.Strikes += 1
-        playerEntry.LastStrike = tick()
+        playerEntry.LastStrike = workspace:GetServerTimeNow()
 
         if _configuration.DebugMode then
             warn(`{player.Name} has exceeded MaxMagnitude, strike {playerEntry.Strikes}`)
@@ -202,8 +151,6 @@ function PositionDeltaService:_scan()
 
         -- prevent yield for each player
         task.spawn(function()
-            -- TODO verify player isn't being teleported by the server
-            
             -- verify a character exists
             local character = player.Character :: Model?
             if character then
@@ -259,6 +206,41 @@ function PositionDeltaService:_handleStrikes()
     end
 end
 
+-- Update configuration
+function PositionDeltaService:UpdateConfiguration(config: Configuration)
+    -- ensure config was supplied
+    if not config then
+        warn(`no configuration was supplied`)
+        return
+    end
+
+    -- ensure config is a table
+    if typeof(config) ~= "table" then
+        warn(`configuration must be table, not {typeof(config)}`)
+        return
+    end
+
+    -- ensure all keys exist and types match
+    for key, value in config do
+        if not _configuration[key] then
+            warn(`key {key} does not exist in configuration`)
+            return
+        else
+            local currentType = typeof(value)
+            local matchType = typeof(_configuration[key])
+            if currentType ~= matchType then
+                warn(`provided type {currentType} is incompatible with {key} type {matchType}`)
+                return
+            end
+       end
+    end
+    
+    -- overwrite default configuration key by key in the event any keys weren't supplied
+    for key, value in config do
+        _configuration[key] = value
+    end
+end
+
 -- Disable / Enable scanning
 function PositionDeltaService:IgnoreScan(player: Player, ignore: boolean)
     -- ensure player was sent
@@ -308,16 +290,16 @@ end
 -- Begin scanning
 RunService.Heartbeat:Connect(function(deltaTime: number)
     -- add time passed
-    _magnitudeTimer += deltaTime
-    _strikeTimer += deltaTime
+    magnitudeTimer += deltaTime
+    strikeTimer += deltaTime
         
     -- determine if it's time for a scan
-    if _magnitudeTimer >= _configuration.MagnitudeRate then
-        _magnitudeTimer = 0
+    if magnitudeTimer >= _configuration.MagnitudeRate then
+        magnitudeTimer = 0
         PositionDeltaService:_scan()
     end
-    if _strikeTimer >= _configuration.StrikeRate then
-        _strikeTimer = 0
+    if strikeTimer >= _configuration.StrikeRate then
+        strikeTimer = 0
         PositionDeltaService:_handleStrikes()
     end
 end)
