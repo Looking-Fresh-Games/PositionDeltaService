@@ -15,6 +15,7 @@ export type Configuration = {
 
     DebugMode: boolean
 }
+
 type PlayerEntry = {
     Position: Vector3,
     Strikes: number,
