@@ -54,7 +54,7 @@ local PositionDeltaService = {}
 -- Prevent client usage
 if not RunService:IsServer() then
     warn(`client attempted to require package`)
-    return
+    return PositionDeltaService
 end
 
 -- Create player entry
