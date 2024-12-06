@@ -51,6 +51,12 @@ local strikeTimer = 0
 -- Class
 local PositionDeltaService = {}
 
+-- Prevent client usage
+if not RunService:IsServer() then
+    warn(`client attempted to require package`)
+    return
+end
+
 -- Create player entry
 function PositionDeltaService:_playerAdded(player: Player?)
     if not player then
