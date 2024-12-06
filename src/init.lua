@@ -35,7 +35,7 @@ local _configuration = {
     StrikeRate = 10,
     MaxStrikes = 5,
 
-    DebugMode = true
+    DebugMode = false
 } :: Configuration
 
 local _playerData = {} :: {[Player]: PlayerEntry}
