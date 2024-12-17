@@ -59,7 +59,7 @@ end
 
 -- Create player entry
 function PositionDeltaService:_playerAdded(player: Player?)
-    if not player then
+    if player == nil then
         warn(`no player was supplied`)
         return
     end
@@ -100,7 +100,7 @@ end
 
 -- Remove player entry
 function PositionDeltaService:_playerRemoving(player: Player?)
-    if not player then
+    if player == nil then
         return
     end
 
@@ -127,7 +127,7 @@ end
 
 -- Player exceeded MaxMagnitude
 function PositionDeltaService:_exceededMaxMagnitude(player: Player?)
-    if not player then
+    if player == nil then
         return
     end
 
@@ -214,9 +214,9 @@ function PositionDeltaService:_handleStrikes()
 end
 
 -- Update configuration
-function PositionDeltaService:UpdateConfiguration(config: Configuration)
+function PositionDeltaService:UpdateConfiguration(config: Configuration?)
     -- ensure config was supplied
-    if not config then
+    if config == nil then
         warn(`no configuration was supplied`)
         return
     end
@@ -229,7 +229,7 @@ function PositionDeltaService:UpdateConfiguration(config: Configuration)
 
     -- ensure all keys exist and types match
     for key, value in config do
-        if not _configuration[key] then
+        if _configuration[key] == nil then
             warn(`key {key} does not exist in configuration`)
             return
         else
@@ -249,9 +249,9 @@ function PositionDeltaService:UpdateConfiguration(config: Configuration)
 end
 
 -- Disable / Enable scanning
-function PositionDeltaService:IgnoreScan(player: Player, ignore: boolean)
+function PositionDeltaService:IgnoreScan(player: Player?, ignore: boolean)
     -- ensure player was sent
-    if not player then
+    if player == nil then
         warn(`no player was provided`)
         return
     end
