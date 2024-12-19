@@ -41,7 +41,7 @@ PositionDeltaService:UpdateConfiguration(configuration)
 
 
 ### **Teleporting**
-This package also allows you to disable / enable monitoring for specific players with the `PositionDeltaService:IgnoreScan(player: Player, ignore: boolean)` method. This is useful for times where players may be travelling at high velocities, or when you intend teleport the player. 
+This package also allows you to disable / enable monitoring for specific players with the `PositionDeltaService:ToggleScan(player: Player, scanActive: boolean)` method. This is useful for times where players may be travelling at high velocities, or when you intend teleport the player. 
 
 ### **Intentional Teleport Example**
 ```lua
@@ -49,11 +49,11 @@ local Player = game:GetService("Players").DevIrradiant
 local PositionDeltaService = require(game:GetService("ServerScriptService").Packages.PositionDeltaService)
 
 -- We're about to teleport the Player, ignore delta checking!
-PositionDeltaService:IgnoreScan(Player, true)
+PositionDeltaService:ToggleScan(Player, false)
 
 -- Teleport the Player
 Player.Character:PivotTo(CFrame.new(Vector3.new(100,0,100)))
 
 -- Player has been teleported, resume delta checking!
-PositionDeltaService:IgnoreScan(Player, false)
+PositionDeltaService:ToggleScan(Player, true)
 ```
