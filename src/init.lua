@@ -249,7 +249,7 @@ function PositionDeltaService:UpdateConfiguration(config: Configuration?)
 end
 
 -- Disable / Enable scanning
-function PositionDeltaService:IgnoreScan(player: Player?, ignore: boolean)
+function PositionDeltaService:ToggleScan(player: Player?, scanActive: boolean)
     -- ensure player was sent
     if player == nil then
         warn(`no player was provided`)
@@ -264,21 +264,21 @@ function PositionDeltaService:IgnoreScan(player: Player?, ignore: boolean)
     end
 
     -- ensure an ignore was sent, and it's a boolean
-    if ignore == nil then
+    if scanActive == nil then
         warn(`no boolean was provided`)
         return
-    elseif typeof(ignore) ~= `boolean` then
-        warn(`supplied ignore type must be boolean, not {typeof(ignore)}`)
+    elseif typeof(scanActive) ~= `boolean` then
+        warn(`supplied ignore type must be boolean, not {typeof(scanActive)}`)
         return
     end
 
     -- reset position if applicable
-    if not ignore then
+    if scanActive then
         playerEntry.Position = Vector3.zero
     end
     
     -- toggle ignore
-    playerEntry.ScanActive = ignore
+    playerEntry.ScanActive = scanActive
 end
 
 
