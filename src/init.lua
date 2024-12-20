@@ -144,6 +144,8 @@ function PositionDeltaService:_exceededMaxMagnitude(player: Player?)
         if _configuration.DebugMode then
             warn(`{player.Name} has exceeded MaxMagnitude, strike {playerEntry.Strikes}`)
         end
+
+        if playerEntry.Strikes >= _configuration.MaxStrikes then PositionDeltaService:_handlePlayer(player, playerEntry) end
     end
 end
 
@@ -194,23 +196,28 @@ end
 
 -- Check player Strikes
 function PositionDeltaService:_handleStrikes()
-    -- filter through all player entries
-    for player: Player, entry: PlayerEntry in _playerData do
-        -- if player exceeded, kick them, otherwise reset strikes
-        if entry.Strikes >= _configuration.MaxStrikes then
-            -- Assess debug status
-            if _configuration.DebugMode then
-                warn(`{player.Name} has exceeded MaxStrikes`)
-                entry.Strikes = 0
+	-- filter through all player entries
+	for player: Player, entry: PlayerEntry in _playerData do
+		PositionDeltaService:_handlePlayer(player, entry)
+	end
+end
 
-                continue
-            end
+-- Check player strikes
+function PositionDeltaService:_handlePlayer(player: Player, entry: PlayerEntry)
+	-- if player exceeded, kick them, otherwise reset strikes
+	if entry.Strikes >= _configuration.MaxStrikes then
+		-- Assess debug status
+		if _configuration.DebugMode then
+			warn(`{player.Name} has exceeded MaxStrikes`)
+			entry.Strikes = 0
 
-            player:Kick()
-        else
-            entry.Strikes = 0
-        end
-    end
+			return
+		end
+
+		player:Kick()
+	else
+		entry.Strikes = 0
+	end
 end
 
 -- Update configuration
