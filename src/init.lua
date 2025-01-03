@@ -12,6 +12,7 @@ export type Configuration = {
     StrikeDebounce: number,
     StrikeRate: number,
     MaxStrikes: number,
+    Axes: Vector3,
 
     DebugMode: boolean
 }
@@ -34,6 +35,7 @@ local _configuration = {
     StrikeDebounce = 1,
     StrikeRate = 10,
     MaxStrikes = 5,
+    Axes = Vector3.new(1,1,1),
 
     DebugMode = false
 } :: Configuration
@@ -84,7 +86,7 @@ function PositionDeltaService:_playerAdded(player: Player?)
         _respawnConnections[player] = player.CharacterAdded:Connect(function(newCharacter: Model)
             -- zero out position entry to prevent false positive
             playerEntry.Position = Vector3.zero
-    
+
             -- listen for humanoid
             local humanoid = newCharacter:WaitForChild("Humanoid", 5) :: Humanoid?
             if humanoid then
@@ -173,7 +175,7 @@ function PositionDeltaService:_scan()
                 end
 
                 -- check magnitude
-                local currentPosition = character:GetPivot().Position
+                local currentPosition = character:GetPivot().Position * _configuration.Axes
                 local magnitude = (currentPosition - entry.Position).Magnitude
 
                 -- check to see if defined threshold was exceeded
@@ -190,7 +192,7 @@ function PositionDeltaService:_scan()
                 end
             end
         end)
-        
+
     end
 end
 
@@ -248,7 +250,7 @@ function PositionDeltaService:UpdateConfiguration(config: Configuration?)
             end
        end
     end
-    
+
     -- overwrite default configuration key by key in the event any keys weren't supplied
     for key, value in config do
         _configuration[key] = value
@@ -283,7 +285,7 @@ function PositionDeltaService:ToggleScan(player: Player?, scanActive: boolean)
     if scanActive then
         playerEntry.Position = Vector3.zero
     end
-    
+
     -- toggle ignore
     playerEntry.ScanActive = scanActive
 end
@@ -306,7 +308,7 @@ RunService.Heartbeat:Connect(function(deltaTime: number)
     -- add time passed
     magnitudeTimer += deltaTime
     strikeTimer += deltaTime
-        
+
     -- determine if it's time for a scan
     if magnitudeTimer >= _configuration.MagnitudeRate then
         magnitudeTimer = 0
