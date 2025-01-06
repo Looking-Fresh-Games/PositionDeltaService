@@ -44,6 +44,8 @@ local _playerData = {} :: {[Player]: PlayerEntry}
 local _respawnConnections = {} :: {[Player]: RBXScriptConnection}
 local _diedConnections = {} :: {[Player]: RBXScriptConnection}
 
+local KickedEvent: BindableEvent = Instance.new("BindableEvent")
+
 -- Refs
 local magnitudeTimer = 0
 local strikeTimer = 0
@@ -51,7 +53,7 @@ local strikeTimer = 0
 
 
 -- Class
-local PositionDeltaService = {}
+local PositionDeltaService = {Kicked = KickedEvent.Event}
 
 -- Prevent client usage
 if not RunService:IsServer() then
@@ -192,7 +194,6 @@ function PositionDeltaService:_scan()
                 end
             end
         end)
-
     end
 end
 
