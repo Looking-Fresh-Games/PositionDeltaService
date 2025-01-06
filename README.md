@@ -20,6 +20,7 @@ Use the exported type `Configuration` to create a config and `PositionDeltaServi
 - StrikeDebounce: number | Seconds per strike allowance (prevents spamming)
 - StrikeRate: number | Seconds per MaxStrike check - Strikes reset each interval
 - MaxStrikes: number | Maximum strike allowance
+- Axes: Vector3 | Unit vector that defines axes to be considered for magnitude checks (good for only checking x,z movement)
 - DebugMode: boolean | Disables kicking, enables warns (helpful for determining best Configuration)
 
 ### **Configuration Example**
@@ -32,6 +33,7 @@ local configuration = {
     StrikeDebounce = 1,
     StrikeRate = 10,
     MaxStrikes = 5,
+    Axes = Vector3.new(1,1,1),
 
     DebugMode = true
 } :: PositionDeltaService.Configuration
