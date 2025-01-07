@@ -218,6 +218,7 @@ function PositionDeltaService:_handlePlayer(player: Player, entry: PlayerEntry)
 		end
 
 		player:Kick()
+        KickedEvent:Fire(player)
 	else
 		entry.Strikes = 0
 	end
